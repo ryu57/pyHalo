@@ -14,7 +14,7 @@ class LensCosmo(object):
         # critical density for lensing in units M_sun * arcsec ^ -2 at lens redshift
         self.sigmacrit = self.epsilon_crit * (0.001) ** 2 * self.cosmo.kpc_per_asec(z_lens) ** 2
         # critical density of the universe in M_sun Mpc^-3
-        self.rhoc = self.cosmo.astropy.critical_density0.value * self.cosmo.density_to_MsunperMpc * self.cosmo.h**-2
+        self.rhoc = self.cosmo.astropy.critical_density0.value * self.cosmo.density_to_MsunperMpc
         # lensing distances
         self.D_d, self.D_s, self.D_ds = self.cosmo.D_A(0, z_lens), self.cosmo.D_A(0, z_source), self.cosmo.D_A(z_lens, z_source)
         # hubble distance in Mpc
@@ -82,13 +82,12 @@ class LensCosmo(object):
         :param c: concentration
         :return:
         """
-        h = self.cosmo.h
-        a_z = self.cosmo.scale_factor(z)
 
-        r200 = self.r200_M(M * h) * h * a_z  # physical radius r200
-        rho0 = self.rho0_c(c) / h**2 / a_z**3 # physical density in M_sun/Mpc**3
-        Rs = r200/c
-        return rho0, Rs, r200
+        r200 = self.r200_from_M(M, z)
+        delta_c = 200 * 3**-1 *(c **3 * (numpy.log(1+c) - c * (1+c)**-1)**-1)
+        rho = delta_c * self.cosmo.rho_crit(z)
+
+        return rho, r200 * c **-1, r200
 
     def NFW_params_physical(self, M, c, z):
 
@@ -108,23 +107,9 @@ class LensCosmo(object):
 
             return r200_arcsec
 
-    def rho0_c(self, c):
-        """
-        computes density normalization as a function of concentration parameter
-        :return: density normalization in h^2/Mpc^3 (comoving)
-        """
+    def r200_from_M(self, m, z):
 
-        return 200. / 3 * self.rhoc * c ** 3 / (numpy.log(1 + c) - c / (1 + c))
-
-    def r200_M(self, M):
-        """
-        computes the radius R_200 of a halo of mass M in comoving distances M/h
-        :param M: halo mass in M_sun/h
-        :type M: float or numpy array
-        :return: radius R_200 in comoving Mpc/h
-        """
-
-        return (3 * M / (4 * numpy.pi * self.rhoc * 200)) ** (1. / 3.)
+        return (3 * m * (200 * 4 * numpy.pi * self.cosmo.rho_crit(z)) ** -1) ** (3**-1)
 
     def point_mass_fac(self,z):
         """
