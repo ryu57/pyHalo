@@ -82,7 +82,6 @@ class LensCosmo(object):
         :param c: concentration
         :return:
         """
-
         r200 = self.r200_from_M(M, z)
         delta_c = 200 * 3**-1 *(c **3 * (numpy.log(1+c) - c * (1+c)**-1)**-1)
         rho = delta_c * self.cosmo.rho_crit(z)
