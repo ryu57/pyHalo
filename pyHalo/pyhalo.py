@@ -100,7 +100,17 @@ class pyHalo(object):
         if not hasattr(self, '_geometry'):
             self._geometry = Geometry(self._cosmology, self.zlens, self.zsource, None, args[0]['cone_opening_angle'])
 
-        realization = Realization(masses, xpos, ypos, r2d, r3d, mdefs, redshifts, mdef_args, self._geometry)
+        if 'log_m_break' in args[0]:
+            mass_scale_low = max(10**8, 10**args[0]['log_m_break'])
+        else:
+            mass_scale_low = 10**8
+
+        if hasattr(self, 'halo_mass_function'):
+            realization = Realization(masses, xpos, ypos, r2d, r3d, mdefs, redshifts, mdef_args,
+                                      halo_mass_function = self.halo_mass_function, mass_scale_low=mass_scale_low)
+        else:
+            realization = Realization(masses, xpos, ypos, r2d, r3d, mdefs, redshifts, mdef_args,
+                                      geometry = self._geometry, mass_scale_low=mass_scale_low)
 
         return realization
 

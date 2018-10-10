@@ -55,6 +55,30 @@ class LensingMassFunction(object):
 
         self._z_range = z_range
 
+    def integrate_mass_plane(self, z, delta_z, mass_low):
+
+        mass = 0
+        logml = np.log10(mass_low)
+        for start_idx, log_m_bin in enumerate(self._log_mbin):
+
+            if np.logical_and(logml >= log_m_bin[0], logml < log_m_bin[1]):
+                break
+
+        for log_m_bin in self._log_mbin[start_idx:]:
+
+            ml, mh = 10**log_m_bin[0], 10**log_m_bin[1]
+            mscale = 0.5*(ml + mh)
+
+            norm = self.norm_at_z(mscale, z, delta_z)
+            #print(np.log10(norm))
+            index = self.plaw_index_z(mscale, z)
+
+            newindex = 2 + index
+            mass += norm * newindex ** -1 * (mh ** newindex - ml ** newindex)
+            #print(np.log10(mass))
+            #a=input('continue')
+        return mass
+
     def norm_at_z_density(self, mscale, z):
 
         bin_index = self._get_mass_bin_index(np.log10(mscale))
