@@ -24,10 +24,11 @@ class PowerLaw(object):
 
     def draw(self):
 
-        if self.draw_poisson:
-            N = np.random.poisson(self.Nhalos_mean)
-        else:
-            N = int(np.round(self.Nhalos_mean))
+        #if self.draw_poisson:
+        #    N = np.random.poisson(self.Nhalos_mean)
+        #else:
+        #print('Warning: halos not being drawn from poisson distribution.')
+        N = int(np.round(self.Nhalos_mean))
 
         x = np.random.rand(N)
         #x = np.random.rand(int(np.round(self.Nhalos_mean)))
