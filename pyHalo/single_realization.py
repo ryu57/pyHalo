@@ -2,7 +2,6 @@ import numpy as np
 from pyHalo.Lensing.NFW import NFWLensing
 from pyHalo.Lensing.TNFW import TNFWLensing
 from pyHalo.Lensing.coreBurk import cBurkLensing
-from pyHalo.Lensing.coreBurkTNFW import cBurkTNFWLensing
 from pyHalo.Lensing.PTmass import PTmassLensing
 from pyHalo.Lensing.PJaffe import PJaffeLensing
 from pyHalo.defaults import default_z_step
@@ -231,9 +230,6 @@ class Realization(object):
 
         elif halo.mdef == 'coreBURKERT':
             lens = cBurkLensing(self.lens_cosmo)
-
-        elif halo.mdef == 'cBURKtNFW':
-            lens = cBurkTNFWLensing(self.lens_cosmo)
 
         elif halo.mdef == 'POINT_MASS':
             lens = PTmassLensing(self.lens_cosmo)
