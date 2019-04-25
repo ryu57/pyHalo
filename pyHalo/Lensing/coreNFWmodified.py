@@ -17,12 +17,13 @@ class coreNFWmodifiedLensing(object):
         self.lens_cosmo = NFW(lens_cosmo)
         self.numerical_class = InterpCNFWmod()
 
-    def params(self, x, y, mass, concentration, b, redshift):
+    def params(self, x, y, mass, concentration, b, redshift,  D_d = None, epscrit = None):
 
         Rs_angle, theta_Rs_nfw = self.lens_cosmo.nfw_physical2angle(mass,
                        concentration, redshift)
 
-        _, normalization = self._compute_properties(Rs_angle, theta_Rs_nfw, redshift)
+        _, normalization = self._compute_properties(Rs_angle, theta_Rs_nfw, redshift,
+                                                                D_d=D_d, epscrit=epscrit)
 
         r_core = b * Rs_angle
         kwargs = {'center_x': x, 'center_y': y,'Rs': Rs_angle,

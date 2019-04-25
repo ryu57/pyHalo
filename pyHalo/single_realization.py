@@ -232,10 +232,15 @@ class Realization(object):
         lens_model_names = []
         redshift_list = []
         kwargs_lensmodel = None
+        last_redshift = -1
 
         for i, halo in enumerate(self.halos):
 
             args = {'x': halo.x, 'y': halo.y, 'mass': halo.mass}
+            if halo.z != last_redshift:
+                last_redshift = halo.z
+                D_d = self.lens_cosmo._Dd_interp(last_redshift)
+                epscrit = self.lens_cosmo._epscrit_interp(last_redshift)
 
             #if not hasattr(halo, 'mass_def_arg'):
             #    halo.profile_parameters()
@@ -268,7 +273,8 @@ class Realization(object):
             else:
                 raise ValueError('halo profile ' + str(halo.mdef) + ' not recongnized.')
 
-            kw, model_args = self._lensing_functions[i].params(**args)
+            kw, model_args = self._lensing_functions[i].params(D_d = D_d, epscrit = epscrit,
+                                                               **args)
 
             lenstronomy_ID = self._lensing_functions[i].lenstronomy_ID
 

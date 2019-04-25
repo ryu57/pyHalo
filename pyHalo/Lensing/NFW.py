@@ -15,9 +15,10 @@ class NFWLensing(object):
 
         self.lens_cosmo = NFW(lens_cosmo)
 
-    def params(self, x, y, mass, concentration, redshift):
+    def params(self, x, y, mass, concentration, redshift,  D_d = None, epscrit = None):
 
-        Rs_angle, theta_Rs = self.lens_cosmo.nfw_physical2angle(mass, concentration, redshift)
+        Rs_angle, theta_Rs = self.lens_cosmo.nfw_physical2angle(mass, concentration, redshift,
+                                                                D_d=D_d, epscrit=epscrit)
 
         kwargs = {'theta_Rs':theta_Rs, 'Rs': Rs_angle,
                   'center_x':x, 'center_y':y}

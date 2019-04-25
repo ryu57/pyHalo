@@ -2,6 +2,7 @@ from pyHalo.Cosmology.cosmology import Cosmology
 from colossus.halo.concentration import concentration
 import numpy
 from scipy.integrate import quad
+from scipy.interpolate import interp1d
 
 class LensCosmo(object):
 
@@ -9,6 +10,10 @@ class LensCosmo(object):
 
         self.cosmo = Cosmology()
         self.z_lens, self.z_source = z_lens, z_source
+        self.D_s = self.cosmo.D_A(0, z_source)
+
+        self._Dd_interp, self._Dds_interp, self._epscrit_interp, \
+        self._kpcasec_interp = self._distances()
 
         # critical density for lensing in units M_sun * Mpc ^ -2
         self.epsilon_crit = self.get_epsiloncrit(z_lens, z_source)
@@ -17,11 +22,42 @@ class LensCosmo(object):
         # critical density of the universe in M_sun Mpc^-3
         self.rhoc = self.cosmo.astropy.critical_density0.value * self.cosmo.density_to_MsunperMpc
         # lensing distances
-        self.D_d, self.D_s, self.D_ds = self.cosmo.D_A(0, z_lens), self.cosmo.D_A(0, z_source), self.cosmo.D_A(z_lens, z_source)
+        self.D_d, self.D_ds = self._Dd_interp(z_lens), self.cosmo.D_A(z_lens, z_source)
         # hubble distance in Mpc
         self._d_hubble = self.cosmo.c * self.cosmo.Mpc * 0.001 * (self.cosmo.h * 100)
 
         self._kpc_per_asec_zlens = self.cosmo.kpc_per_asec(self.z_lens)
+
+    def _distances(self):
+
+        step = 0.01
+        zrange = numpy.arange(0.01, self.z_source + step, step)
+        zrange[-1] *= 0.9999
+
+        eps_crit_prefactor = self.cosmo.c ** 2 * (4 * numpy.pi * self.cosmo.G) ** -1
+
+        dd, dds, epscrit, kpcasecz = [], [], [], []
+
+        for i, zi in enumerate(zrange):
+
+            D_d = self.cosmo.D_A(0, zi)
+            D_ds = self.cosmo.D_A(zi, self.z_source)
+
+            eps_crit_z = eps_crit_prefactor * (self.D_s * D_ds ** -1 * D_d ** -1)
+
+            kpc_per_asec_z = self.cosmo.kpc_per_asec(zi)
+
+            dd.append(D_d)
+            dds.append(D_ds)
+            epscrit.append(eps_crit_z)
+            kpcasecz.append(kpc_per_asec_z)
+
+        D_d_interp = interp1d(zrange, dd)
+        D_ds_interp = interp1d(zrange, dds)
+        epscrit_interp = interp1d(zrange, epscrit)
+        kpcasec_interp = interp1d(zrange, kpcasecz)
+
+        return D_d_interp, D_ds_interp, epscrit_interp, kpcasec_interp
 
     def mthermal_to_halfmode(self, m_thermal):
 
@@ -52,39 +88,49 @@ class LensCosmo(object):
 
     def get_epsiloncrit(self,z1,z2):
 
-        D_ds = self.cosmo.D_A(z1, z2)
-        D_d = self.cosmo.D_A(0, z1)
-        D_s = self.cosmo.D_A(0, z2)
+        return self._epscrit_interp(z1)
 
-        epsilon_crit = (self.cosmo.c**2*(4*numpy.pi*self.cosmo.G)**-1)*(D_s*D_ds**-1*D_d**-1)
+        #D_ds = self.cosmo.D_A(z1, z2)
+        #D_d = self.cosmo.D_A(0, z1)
+        #D_s = self.cosmo.D_A(0, z2)
 
-        return epsilon_crit
+        #epsilon_crit = (self.cosmo.c**2*(4*numpy.pi*self.cosmo.G)**-1)*(D_s*D_ds**-1*D_d**-1)
+
+        #return epsilon_crit
 
     def get_sigmacrit(self, z):
 
-        return self.get_epsiloncrit(z,self.z_source)*(0.001)**2*self.cosmo.kpc_per_asec(z)**2
+        return self.get_epsiloncrit(z, self.z_source) * (0.001) ** 2 * self._kpcasec_interp(z) ** 2
+
+        #return self.get_epsiloncrit(z,self.z_source)*(0.001)**2*self.cosmo.kpc_per_asec(z)**2
 
     def get_sigmacrit_z1z2(self,zlens,zsrc):
 
-        return self.get_epsiloncrit(zlens,zsrc)*(0.001)**2*self.cosmo.kpc_per_asec(zlens)**2
+        return self.get_sigmacrit(zlens)
+        #return self.get_epsiloncrit(zlens,zsrc)*(0.001)**2*self.cosmo.kpc_per_asec(zlens)**2
 
     def vdis_to_Rein(self,zd,zsrc,vdis):
 
-        return 4 * numpy.pi * (vdis * (0.001 * self.cosmo.c * self.cosmo.Mpc) ** -1) ** 2 * \
-               self.cosmo.D_A(zd, zsrc) * self.cosmo.D_A(0,zsrc) ** -1 * self.cosmo.arcsec ** -1
+        prefactor = 4 * numpy.pi * (vdis * (0.001 * self.cosmo.c * self.cosmo.Mpc) ** -1) ** 2
+        return prefactor * self._Dds_interp(zd) * self.D_s ** -1 * self.cosmo.arcsec ** -1
+
+        #return 4 * numpy.pi * (vdis * (0.001 * self.cosmo.c * self.cosmo.Mpc) ** -1) ** 2 * \
+        #       self.cosmo.D_A(zd, zsrc) * self.cosmo.D_A(0,zsrc) ** -1 * self.cosmo.arcsec ** -1
 
     def vdis_to_Reinkpc(self,zd,zsrc,vdis):
 
-        return self.cosmo.kpc_per_asec(zd)*self.cosmovdis_to_Rein(zd,zsrc,vdis)
+        return self._kpcasec_interp(zd) * self.cosmo.vdis_to_Rein(zd, zsrc, vdis)
 
-    def beta(self,z,zmain,zsrc):
+        #return self.cosmo.kpc_per_asec(zd)*self.cosmovdis_to_Rein(zd,zsrc,vdis)
 
-        D_12 = self.cosmo.D_A(zmain, z)
-        D_os = self.cosmo.D_A(0, zsrc)
-        D_1s = self.cosmo.D_A(zmain, zsrc)
-        D_o2 = self.cosmo.D_A(0, z)
+    #def beta(self,z,zmain,zsrc):
 
-        return D_12 * D_os * (D_o2 * D_1s) ** -1
+    #    D_12 = self.cosmo.D_A(zmain, z)
+    #    D_os = self.cosmo.D_A(0, zsrc)
+    #    D_1s = self.cosmo.D_A(zmain, zsrc)
+    #    D_o2 = self.cosmo.D_A(0, z)
+
+    #    return D_12 * D_os * (D_o2 * D_1s) ** -1
 
     def subhalo_mfunc_spatial_scaing(self, R_ein_arcsec, zlens):
         """
@@ -113,7 +159,8 @@ class LensCosmo(object):
         Rs = rs_reference * a_z_rescale
 
         # Einstein radius in kpc
-        R_ein_kpc = R_ein_arcsec * self.cosmo.kpc_per_asec(zlens)
+        R_ein_kpc = R_ein_arcsec * self._kpcasec_interp(zlens)
+        #R_ein_kpc = R_ein_arcsec * self.cosmo.kpc_per_asec(zlens)
         x = R_ein_kpc * Rs ** -1
 
         # new kappa value
@@ -146,8 +193,8 @@ class LensCosmo(object):
 
     def norm_A0_from_a0area(self, a0_per_kpc2, zlens, cone_diameter, plaw_index, m_pivot = 10**8):
 
-        R_kpc = self.cosmo.kpc_per_asec(zlens) * (0.5 * cone_diameter)
-
+        #R_kpc = self.cosmo.kpc_per_asec(zlens) * (0.5 * cone_diameter)
+        R_kpc = self._kpcasec_interp(zlens) * (0.5 * cone_diameter)
         area = numpy.pi * R_kpc ** 2
 
         return a0_per_kpc2 * m_pivot ** (-plaw_index-1) * area

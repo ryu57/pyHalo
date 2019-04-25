@@ -163,7 +163,7 @@ class Halo(object):
                 else:
                     time_function = self.cosmo_prof.lens_cosmo.cosmo.lookback_time
                     cross_times_timescale = zeta_value(self.z, self._args['SIDMcross'], time_function)
-                    core_ratio = interp_rc_over_rs(rho, rs, cross_times_timescale)
+                    core_ratio = interp_rc_over_rs(rho, rs, cross_times_timescale)[0]
 
                 mdef_args.update({'b': core_ratio})
 

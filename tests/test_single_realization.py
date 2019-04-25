@@ -73,9 +73,8 @@ class TestSingleRealization(object):
         x = y = r2d = r3d = np.zeros_like(masses)
         mdefs = ['NFW']*len(masses)
         mdef_args = [{'concentration':9}]*len(masses)
-
         self.realization = Realization(masses, x, y, r2d, r3d, mdefs, redshifts,
-                                       mdef_args, self.lensing_mass_function)
+                 self.lensing_mass_function, other_params = {'R_ein_main':1})
 
     def test_mass_at_z(self):
 

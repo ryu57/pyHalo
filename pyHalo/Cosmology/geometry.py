@@ -23,8 +23,10 @@ class Geometry(object):
         if z <= z_lens:
             return theta
 
-        delta_DA_z = self._cosmo.D_A(0, z)
+        #delta_DA_z = self._cosmo.D_A(0, z)
         delta_DA_zlens_z = self._cosmo.D_A(z_lens, z)
+
+        delta_DA_z = self._lens_cosmo._Dd_interp(z)
 
         # convert reduced deflection angle to physical deflection angle
         angle_deflection_reduced = theta
@@ -37,10 +39,20 @@ class Geometry(object):
 
     def angle_between_planes(self, z1, z2, z3, theta1, theta2):
 
-        x12 = self._cosmo.T_xy(z1, z2)
-        x2 = self._cosmo.T_xy(0, z2)
-        x13 = self._cosmo.T_xy(z1, z3)
-        x3 = self._cosmo.T_xy(0, z3)
+        a1 = (1+z1) ** -1
+        a2 = (1+z2) ** -1
+        a3 = (1+z3) ** -1
+        x1 = self._lens_cosmo._Dd_interp(z1) * a1 ** -1
+        x2 = self._lens_cosmo._Dd_interp(z2) * a2 ** -1
+        x3 = self._lens_cosmo._Dd_interp(z3) * a3 ** -1
+
+        x12 = x2 - x1
+        x13 = x3 - x1
+
+        #x12 = self._cosmo.T_xy(z1, z2)
+        #x2 = self._cosmo.T_xy(0, z2)
+        #x13 = self._cosmo.T_xy(z1, z3)
+        #x3 = self._cosmo.T_xy(0, z3)
 
         d_theta = (theta1 - theta2) * (x2 / x12)
 
@@ -102,7 +114,8 @@ class Geometry(object):
 
         angle_radian = self.cone_opening_angle * self._cosmo.arcsec
 
-        R_in = angle_radian * self._cosmo.D_A(0, z)
+        #R_in = angle_radian * self._cosmo.D_A(0, z)
+        R_in = angle_radian * self._lens_cosmo._Dd_interp(z)
 
         if z <= z_lens:
             # in front of main deflector
@@ -114,6 +127,8 @@ class Geometry(object):
 
             # subtract the main deflector deflection
             R = R_in - angle_deflection * self._cosmo.D_A(z_lens, z)
+            #dis =
+            #R = R_in - angle_deflection * self._lens_cosmo._Dds_interp()
 
         return 0.5 * R
 

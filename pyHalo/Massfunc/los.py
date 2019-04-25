@@ -152,8 +152,8 @@ class LOSPowerLaw(LOS):
         init = True
         delta_z = self._redshift_range[1] - self._redshift_range[0]
 
-        for idx, zcurrent in enumerate(self._redshift_range):
-            
+        for idx, zcurrent in enumerate(self._redshift_range[0:-1]):
+
             if zcurrent == self._lensing_mass_func.geometry._zlens:
                 continue
 
@@ -274,7 +274,7 @@ class LOSPowerLaw(LOS):
 
 def _redshift_range_LOS(zmin, zmax, zstep):
 
-    zvalues = np.arange(zmin, zmax, zstep)
+    zvalues = np.round(np.arange(zmin, zmax, zstep), 3)
 
     return zvalues
 

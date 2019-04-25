@@ -11,9 +11,11 @@ class TNFWLensing(object):
 
         self.lens_cosmo = TNFW(lens_cosmo)
 
-    def params(self, x, y, mass, concentration, redshift, r_trunc):
+    def params(self, x, y, mass, concentration, redshift, r_trunc,  D_d = None, epscrit = None):
 
-        Rs_angle, theta_Rs = self.lens_cosmo.tnfw_physical2angle(mass, concentration, r_trunc, redshift)
+        Rs_angle, theta_Rs = self.lens_cosmo.tnfw_physical2angle(mass, concentration,
+                                                                 r_trunc, redshift,
+                                                                D_d=D_d, epscrit=epscrit)
 
         kwargs = {'theta_Rs':theta_Rs, 'Rs': Rs_angle,
                   'center_x':x, 'center_y':y, 'r_trunc':r_trunc}

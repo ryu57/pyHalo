@@ -16,10 +16,10 @@ class coreNFWmodifiedtruncLensing(object):
         self.lens_cosmo = coreTNFW(lens_cosmo)
         self.numerical_class = InterpCNFWmodtrunc()
 
-    def params(self, x, y, mass, concentration, b, redshift, r_trunc):
+    def params(self, x, y, mass, concentration, b, redshift, r_trunc, D_d = None, epscrit = None):
 
         Rs_angle, theta_Rs_nfw = self.lens_cosmo.tnfw_physical2angle(mass,
-                       concentration, r_trunc, redshift)
+                       concentration, r_trunc, redshift, D_d = D_d, epscrit = epscrit)
 
         normalization = self._normalize(Rs_angle, theta_Rs_nfw)
 

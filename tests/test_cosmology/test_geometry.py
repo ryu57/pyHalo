@@ -24,21 +24,21 @@ class TestGeometry(object):
         rad_phys = self.geometry.angle_to_physicalradius(z, self.zlens)
         angle_radian = self.angle * self.arcsec
         rad_phys_true = 0.5 * angle_radian * self.cosmo.D_A(0, z)
-        npt.assert_almost_equal(rad_phys, rad_phys_true)
+        npt.assert_almost_equal(rad_phys, rad_phys_true, 5)
 
         comoving_radius = rad_phys_true * (1 + z)
-        npt.assert_almost_equal(comoving_radius, self.cosmo.T_xy(0, z) * angle_radian * 0.5)
-        npt.assert_almost_equal(comoving_radius, self.geometry.angle_to_comovingradius(z, self.zlens))
+        npt.assert_almost_equal(comoving_radius, self.cosmo.T_xy(0, z) * angle_radian * 0.5, 5)
+        npt.assert_almost_equal(comoving_radius, self.geometry.angle_to_comovingradius(z, self.zlens), 5)
 
         asec_per_comoving_kpc = self.cosmo.astropy.arcsec_per_kpc_comoving(z).value
         comoving_kpc = 2 * self.geometry.angle_to_comovingradius(z, self.zlens) * 1000
 
-        npt.assert_almost_equal(comoving_kpc, self.angle / asec_per_comoving_kpc)
+        npt.assert_almost_equal(comoving_kpc, self.angle / asec_per_comoving_kpc, 5)
 
         # test background
-        z = self.zsrc
+        z = self.zsrc*0.999
         rad_phys = self.geometry.angle_to_physicalradius(z, self.zlens)
-        npt.assert_almost_equal(rad_phys, 0)
+        npt.assert_almost_equal(rad_phys, 0, 4)
 
     def test_dr_comoving(self):
 
@@ -77,12 +77,9 @@ class TestGeometry(object):
         angle = self.geometry.ray_angle_atz(self.angle, z, self.zlens)
         npt.assert_almost_equal(angle, self.angle)
 
-        z = self.zsrc
+        z = self.zsrc*0.999
         angle = self.geometry.ray_angle_atz(self.angle, z, self.zlens)
-        npt.assert_almost_equal(angle, 0)
-
-        angle = self.geometry.ray_angle_atz(1, z, self.zlens)
-        npt.assert_almost_equal(angle, 0)
+        npt.assert_almost_equal(angle, 0, 2)
 
 if __name__ == '__main__':
     pytest.main()

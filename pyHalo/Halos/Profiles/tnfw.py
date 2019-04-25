@@ -12,21 +12,26 @@ class TNFW(CosmoMassProfiles):
 
         return Rs_angle, theta_Rs
 
-    def tnfw_physical2angle(self, M, c, r_t, z):
+    def tnfw_physical2angle(self, M, c, r_t, z, D_d = None, epscrit = None):
         """
         converts the physical mass and concentration parameter of an NFW profile into the lensing quantities
         :param M: mass enclosed 200 \rho_crit
         :param c: NFW concentration parameter (r200/r_s)
         :return: theta_Rs (observed bending angle at the scale radius, Rs_angle (angle at scale radius) (in units of arcsec)
         """
-        D_d = self.lens_cosmo.cosmo.D_A(0, z)
+        if D_d is None:
+            D_d = self.lens_cosmo._Dd_interp(z)
+        if epscrit is None:
+            epscrit = self.lens_cosmo._epscrit_interp(z)
+
+        #D_d = self.lens_cosmo.cosmo.D_A(0, z)
         rho0, Rs, r200 = self._nfwParam_physical_Mpc(M, c, z)
 
         Rs_angle = Rs / D_d / self.lens_cosmo.cosmo.arcsec  # Rs in arcsec
         #theta_Rs = rho0 * (4 * Rs ** 2 * (1 + numpy.log(1. / 2.)))
         theta_Rs = self.tnfw_theta_Rs(Rs, rho0, r_t * Rs_angle ** -1)
-        eps_crit = self.lens_cosmo.get_epsiloncrit(z, self.lens_cosmo.z_source)
-        return Rs_angle, theta_Rs / eps_crit / D_d / self.lens_cosmo.cosmo.arcsec
+        #eps_crit = self.lens_cosmo.get_epsiloncrit(z, self.lens_cosmo.z_source)
+        return Rs_angle, theta_Rs / epscrit / D_d / self.lens_cosmo.cosmo.arcsec
 
     def tnfw_theta_Rs(self, rs, rho, tau):
 

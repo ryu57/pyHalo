@@ -84,6 +84,7 @@ class CosmoMassProfiles(object):
         rNM_physical = self.rN_M_nfw_physical(M, N, z)
 
         rNM_arcsec = rNM_physical * 1000 * self.lens_cosmo.cosmo.kpc_per_asec(z) ** -1
+        #rNM_arcsec =
 
         return rNM_arcsec
 
