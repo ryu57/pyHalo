@@ -14,6 +14,31 @@ class CosmoMassProfiles(object):
 
         self.lens_cosmo = lens_comso
 
+    def zeta(self, cross, tscale=10):
+        return cross * tscale
+
+    def compute_r1_fromM(self, m, c, z, sigma, cross):
+
+        rhos, rs, _ = self.NFW_params_physical(m, c, z)
+
+        r1 = self.compute_r1(rhos, rs, sigma, cross)
+
+        return r1
+
+    def compute_r1(self, rhos, rs, sigma, cross):
+
+        # 1 cm^2/gram km/sec = 2.3165e-10 kpc^3 / solar mass / Gyr
+
+        v_avg = 4 * 3.14 ** -0.5 * self.zeta(cross) * sigma
+
+        const = 2.316e-10
+        k = v_avg * rhos * const
+
+        roots = numpy.roots([1, 2, 1, -k])
+        lam = numpy.real(numpy.max(roots[numpy.where(numpy.isreal(roots))]))
+
+        return lam * rs
+
     def rho0_c_NFW(self, c):
         """
         computes density normalization as a function of concentration parameter

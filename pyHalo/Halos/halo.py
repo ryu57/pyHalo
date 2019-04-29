@@ -11,11 +11,13 @@ class Halo(object):
     is_subhalo = False
 
     has_concentration = ['NFW', 'TNFW', 'coreBURKERT', 'cBURKcNFW', 'CNFW', 'cNFWmod',
-                         'cNFWmod_trunc']
+                         'cNFWmod_trunc', 'TNFWpJAFFE']
 
-    has_truncation = ['TNFW', 'cNFWmod_trunc']
+    has_truncation = ['TNFW', 'cNFWmod_trunc', 'TNFWpJAFFE']
 
-    has_core = ['coreBURKERT', 'cBURKcNFW', 'CNFW', 'cNFWmod', 'cNFWmod_trunc']
+    has_core = ['coreBURKERT', 'cBURKcNFW', 'CNFW', 'cNFWmod', 'cNFWmod_trunc', 'TNFWpJAFFE']
+
+    has_r1 = ['TNFWpJAFFE']
 
     def __init__(self, mass=None, x=None, y=None, r2d=None, r3d=None, mdef=None, z=None, cosmo_m_prof=None, args={}):
 
@@ -176,6 +178,11 @@ class Halo(object):
             else:
                 #mdef_args.update({'b': np.round(self._args['core_ratio'],2)})
                 mdef_args.append(np.round(self._args['core_ratio'], 2))
+
+        if self.mdef in self.has_r1:
+
+            r1 = None
+            mdef_args.append(r1)
 
         if self.mdef == 'POINT_MASS':
             pass
