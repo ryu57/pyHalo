@@ -90,7 +90,7 @@ class NFW_3D(object):
         self.xoffset,self.yoffset = xoffset,yoffset
         self.tidal_core = tidal_core
 
-        self.r_core = r_core_parent
+        self.r_core = self.tidal_core
 
         self.xmin = rmin * Rs ** -1
         self.xmax = rmax3d * Rs ** -1
@@ -113,6 +113,14 @@ class NFW_3D(object):
 
             x_value,y_value = r2*np.cos(theta),r2*np.sin(theta)
             z_value = r_z * np.sin(phi)
+            #z_min = self.r_core*0.2
+            #while True:
+            #    z_value = z_min * (1 - np.random.rand()) ** (-1 / (1.2 - 1))
+            #    if z_value < self.rmax3d:
+            #        break
+
+            #r = np.random.rand()
+            #zcoord = self.r_tidal * 0.2 * (1 - r) ** (-1 / (1.1 - 1))
 
             r3 = (r2**2+z_value**2)**0.5
 
@@ -159,7 +167,4 @@ class NFW_3D(object):
 
         norm = self._density_3d(self.xmin * self.rs)
         return norm
-
-
-
 
