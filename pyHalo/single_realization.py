@@ -484,7 +484,7 @@ class Realization(object):
         #return Realization(None, None, None, None, None, None, None, None, self.halo_mass_function, halos=halos,
         #                   wdm_params=self._wdm_params, mass_sheet_correction=self._mass_sheet_correction)
 
-    def mass_sheet_correction(self, mlow_front = 10**7.5, mlow_back = 10**8):
+    def mass_sheet_correction(self, mlow_front=10**7.5, mlow_back=10**8):
 
         kwargs = []
         zsheet = []
@@ -515,8 +515,8 @@ class Realization(object):
                 zsheet.append(z)
 
         if self._prof_params['subtract_subhalo_mass_sheet']:
-            kappa = self._prof_params['subhalo_mass_sheet_scale'] * self.convergence_at_z_exact(self.geometry._zlens)
-            kwargs.append({'kappa_ext': - kappa})
+            kappa_sub = self._prof_params['subhalo_mass_sheet_scale'] * self.convergence_at_z_exact(self.geometry._zlens)
+            kwargs.append({'kappa_ext': - kappa_sub})
             zsheet.append(self.geometry._zlens)
 
         return kwargs, zsheet
