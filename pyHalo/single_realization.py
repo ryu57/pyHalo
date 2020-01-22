@@ -495,7 +495,7 @@ class Realization(object):
         #return Realization(None, None, None, None, None, None, None, None, self.halo_mass_function, halos=halos,
         #                   wdm_params=self._wdm_params, mass_sheet_correction=self._mass_sheet_correction)
 
-    def mass_sheet_correction(self, mlow_front = 10**7.5, mlow_back = 10**8):
+    def mass_sheet_correction(self, mlow_front=10**7.5, mlow_back=10**8):
 
         kwargs = []
         zsheet = []
