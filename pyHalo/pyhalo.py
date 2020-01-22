@@ -26,15 +26,22 @@ class pyHalo(object):
         keyword arguments
         """
 
-        self.zlens = zlens
-        self.zsource = zsource
-
-        self._cosmology = Cosmology(**cosmology_kwargs)
-
+        self._cosmology_kwargs = cosmology_kwargs
+        self._kwargs_mass_function = kwargs_halo_mass_function
         self._halo_mass_function_args = kwargs_halo_mass_function
 
+        self.reset_redshifts(zlens, zsource)
+
+    def reset_redshifts(self, zlens, zsource):
+
+        self.zlens = zlens
+        self.zsource = zsource
+        self._cosmology = Cosmology(**self._cosmology_kwargs)
+        self.halo_mass_function = None
+        self._geometry = None
+
     @property
-    def cosmo(self):
+    def astropy_cosmo(self):
         return self._cosmology.astropy
 
     def render(self, type, args, nrealizations=1, verbose=False):
@@ -57,7 +64,7 @@ class pyHalo(object):
 
     def _build_LOS_mass_function(self, args):
 
-        if not hasattr(self, 'halo_mass_function'):
+        if self.halo_mass_function is None:
 
             if 'mass_func_type' not in args.keys():
                 args['mass_func_type'] = realization_default.default_type
@@ -87,11 +94,12 @@ class pyHalo(object):
                                                           cone_opening_angle=args['cone_opening_angle'],
                                                           **self._halo_mass_function_args)
 
-            self._geometry = self.halo_mass_function.geometry
-
         return self.halo_mass_function
 
     def _render_single(self, type, args, verbose):
+
+        self.halo_mass_function = self._build_LOS_mass_function(args[0])
+        self._geometry = self.halo_mass_function.geometry
 
         executables_list, mass_def_list, model_names = self._build(type, args)
 
@@ -127,8 +135,8 @@ class pyHalo(object):
                     redshifts = np.append(redshifts, z)
                     subhalo_flag += sub_flag
 
-            if not hasattr(self, '_geometry'):
-                self._geometry = Geometry(self._cosmology, self.zlens, self.zsource, args[0]['cone_opening_angle'])
+            if self._geometry is None:
+                self._geometry = self._set_geometry(args[0]['cone_opening_angle'])
 
             mass_sheet = True
             if 'mass_func_type' in args[component_index].keys():
