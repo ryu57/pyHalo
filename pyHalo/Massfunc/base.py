@@ -66,6 +66,12 @@ class MassFunctionBase(object):
 
             options = ['sigma_sub', 'f_sub']
 
+        elif mfunc_type == 'delta_function':
+
+            required_params = ['log_M', 'DM_mass_fraction']
+
+            options = []
+
         else:
             raise Exception('mass function type '+str(mfunc_type)+' not recognized.')
 
