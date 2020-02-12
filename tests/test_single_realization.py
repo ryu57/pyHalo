@@ -3,7 +3,7 @@ from pyHalo.Massfunc.parameterizations import BrokenPowerLaw, PowerLaw
 from pyHalo.Cosmology.lensing_mass_function import LensingMassFunction
 from pyHalo.Cosmology.cosmology import Cosmology
 from pyHalo.single_realization import Realization, RealizationFast
-from pyHalo.Massfunc.los import LOSPowerLaw
+from pyHalo.Massfunc.los_delta import LOSPowerLaw
 import pytest
 import numpy as np
 from copy import copy

@@ -3,7 +3,8 @@ from pyHalo.Halos.lens_cosmo import LensCosmo
 from pyHalo.Cosmology.geometry import Geometry
 from pyHalo.Cosmology.lensing_mass_function import LensingMassFunction
 import numpy as np
-from pyHalo.Massfunc.los import LOSPowerLaw, LOSDelta
+from pyHalo.Massfunc.los_delta import LOSDelta
+from pyHalo.Massfunc.los_powerlaw import LOSPowerLaw
 from pyHalo.Massfunc.mainlens import MainLensPowerLaw
 from pyHalo.defaults import *
 from pyHalo.single_realization import Realization
@@ -76,22 +77,26 @@ class pyHalo(object):
                 logLOS_mhigh = args['logM_delta'] + 0.01
 
             else:
-                if 'log_mlow_los' not in args.keys():
-                    logLOS_mlow = realization_default.log_mlow
-                else:
+                if 'log_mlow_los' in args.keys():
                     logLOS_mlow = args['log_mlow_los']
-
-                if 'log_mhigh_los' not in args.keys():
-                    logLOS_mhigh = realization_default.log_mhigh
+                elif 'log_mlow' in args.keys():
+                    logLOS_mlow = args['log_mlow']
                 else:
-                    logLOS_mhigh = args['log_mhigh_los']
+                    raise Exception('must specify log_mlow or log_mlow_los.')
+
+                if 'log_mhigh_los' in args.keys():
+                    logLOS_mhigh = args['log_high_los']
+                elif 'log_mhigh' in args.keys():
+                    logLOS_mhigh = args['log_mhigh']
+                else:
+                    raise Exception('must specify log_mhigh or log_mhigh_los.')
 
             if 'two_halo_term' not in self._halo_mass_function_args.keys():
                 self._halo_mass_function_args.update({'two_halo_term': realization_default.two_halo_term})
             if 'mass_function_model' not in self._halo_mass_function_args.keys():
                 self._halo_mass_function_args.update({'mass_function_model': cosmo_default.default_mass_function})
 
-            self.halo_mass_function = LensingMassFunction(self._cosmology, 10 ** logLOS_mlow, 10 ** logLOS_mhigh, self.zlens, self.zsource,
+            self.halo_mass_function = LensingMassFunction(self._cosmology, 10**logLOS_mlow, 10**logLOS_mhigh, self.zlens, self.zsource,
                                                           cone_opening_angle=args['cone_opening_angle'],
                                                           **self._halo_mass_function_args)
 
@@ -165,6 +170,8 @@ class pyHalo(object):
 
     def _add_profile_params(self, args):
 
+        if 'zmax' not in args.keys():
+            args['zmax'] = self.zsource - lenscone_default.default_z_step
         return set_default_kwargs(args)
 
     def _build_los(self, args):

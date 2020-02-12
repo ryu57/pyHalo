@@ -1,13 +1,54 @@
 from colossus.lss.mass_function import *
 from pyHalo.Cosmology.geometry import *
-from scipy.interpolate import interp1d
+from scipy.interpolate import RegularGridInterpolator
 from pyHalo.defaults import *
 from colossus.lss.bias import twoHaloTerm
+
+class MassFunctionInterp(object):
+
+    def __init__(self, log_mlow, log_mhigh, mfunc_function, zmax, delta_z):
+
+        self.log_mstep = 0.1
+
+        zvalues = np.arange(0.01, zmax+delta_z, delta_z)
+
+        logm_centers = np.arange(log_mlow, log_mhigh, self.log_mstep) + self.log_mstep/2
+        if logm_centers[-1] > log_mhigh:
+            logm_centers = logm_centers[0:-1]
+
+        zz, logmm = np.meshgrid(zvalues, logm_centers)
+
+        shape0 = zz.shape
+
+        slope_array, log_norm_array = [], []
+
+        for i, (zi, logmm) in enumerate(zip(zz.ravel(), logmm.ravel())):
+
+            log_m_values = np.linspace(logmm - self.log_mstep/2, logmm + self.log_mstep/2, 10)
+            log_dN_dmdV = np.log10(mfunc_function(10 ** log_m_values, zi))
+            [slope, log_norm] = np.polyfit(log_m_values, log_dN_dmdV, 1)
+
+            slope_array.append(slope)
+            log_norm_array.append(log_norm)
+
+        log_norm_array = np.array(log_norm_array).reshape(shape0)
+        slope_array = np.array(slope_array).reshape(shape0)
+        points = (logm_centers, zvalues)
+
+        self._interp_norm = RegularGridInterpolator(points, log_norm_array)
+        self._interp_slope = RegularGridInterpolator(points, slope_array)
+        self.log_mass_centers = logm_centers
+
+    def norm(self, log_mass, redshift):
+        return 10**self._interp_norm((log_mass, redshift))
+
+    def slope(self, log_mass, redshift):
+        return self._interp_slope((log_mass, redshift))
 
 class LensingMassFunction(object):
 
     def __init__(self, cosmology, mlow, mhigh, zlens, zsource, cone_opening_angle,
-                 mass_function_model=None, use_lookup_table=True, two_halo_term=True,
+                 mass_function_model=None, two_halo_term=True,
                  geometry_type=None):
 
         self._cosmo = cosmology
@@ -23,67 +64,46 @@ class LensingMassFunction(object):
         self._mlow, self._mhigh = mlow, mhigh
         self._two_halo_term = two_halo_term
 
-        self._norms_z_dV, self._plaw_indexes_z, self._log_mbin = [], [], []
+        dz_interp = 0.2
+        self.mass_function_interpolated = MassFunctionInterp(np.log10(mlow), np.log10(mhigh),
+                                                             self.dN_dMdV_comoving, zsource, dz_interp)
 
-        if use_lookup_table:
+        self.log_mass_centers = self.mass_function_interpolated.log_mass_centers
+        self.log_mstep = self.mass_function_interpolated.log_mstep
 
-            if self._mass_function_model == 'sheth99_old':
-                from pyHalo.Cosmology.lookup_tables import lookup_sheth99_simple as table
-            elif self._mass_function_model == 'sheth99':
-                from pyHalo.Cosmology.lookup_tables import lookup_sheth99_updated as table
-            else:
-                raise Exception('lookup table '+self._mass_function_model+' not found.')
+    def norm_at_z_density(self, log_mass_scale, z):
 
-            norm_z_dV = table.norm_z_dV
-            plaw_index_z = table.plaw_index_z
-            z_range = table.z_range
-            delta_z = table.delta_z
-
-        else:
-            # list ordering is by mass, with sublists consisting of different redshifts
-            norm_z_dV, plaw_index_z, z_range, delta_z = self._build(mlow, mhigh, zsource)
-
-            self._norm_z_dV = norm_z_dV
-            self._plaw_index_z = plaw_index_z
-            self._z_range = z_range
-            self._delta_z = delta_z
-
-        self._norm_dV_interp = interp1d(z_range, norm_z_dV)
-
-        self._plaw_interp = interp1d(z_range, plaw_index_z)
-
-        self._delta_z = delta_z
-
-        self._z_range = z_range
-
-    def norm_at_z_density(self, z):
-
-        norm = self._norm_dV_interp(z)
+        norm = self.mass_function_interpolated.norm(log_mass_scale, z)
 
         return norm
 
-    def plaw_index_z(self, z):
+    def plaw_index_z(self, log_mass_scale, z):
 
-        idx = self._plaw_interp(z)
+        index = self.mass_function_interpolated.slope(log_mass_scale, z)
 
-        return idx
+        return index
 
-    def norm_at_z(self, z, delta_z):
+    def norm_at_z(self, log_mass_scale, z, delta_z):
 
-        norm_dV = self.norm_at_z_density(z)
+        norm_dV = self.norm_at_z_density(log_mass_scale, z)
 
         dV = self.geometry.volume_element_comoving(z, delta_z)
 
         return norm_dV * dV
 
-    def norm_at_z_biased(self, z, delta_z, M_halo, rmin = 0.5, rmax = 10):
+    def two_halo_boost(self, M_halo, z, rmin=0.5, rmax=10):
+
+        boost = 1 + 2 * self.integrate_two_halo(M_halo, z, rmin=rmin, rmax=rmax) / (rmax - rmin)
+        return boost
+
+    def norm_at_z_biased(self, log_mass_scale, z, delta_z, M_halo, rmin = 0.5, rmax = 10):
 
         if self._two_halo_term:
 
             # factor of 2 for symmetry
-            boost = 1+2*self.integrate_two_halo(M_halo, z, rmin = rmin, rmax = rmax) / (rmax - rmin)
+            boost = self.two_halo_boost(M_halo, z, rmin, rmax)
 
-            return boost * self.norm_at_z(z, delta_z)
+            return boost * self.norm_at_z(log_mass_scale, z, delta_z)
         else:
             return self.norm_at_z(z, delta_z)
 
@@ -105,49 +125,6 @@ class LensingMassFunction(object):
         rho_2h = twoHaloTerm(r_h, M_h, z, mdef=mdef) * self._cosmo._colossus_cosmo.rho_m(z) ** -1
 
         return rho_2h * h ** -2
-
-    def _build(self, mlow, mhigh, zsource):
-
-        z_range = np.arange(lenscone_default.default_zstart, zsource + 0.02, 0.02)
-
-        #z_range = np.linspace(default_zstart, zsource - default_zstart, nsteps)
-
-        M = np.logspace(np.log10(mlow), np.log10(mhigh), 20)
-
-        norm, index = [], []
-
-        for zi in z_range:
-
-            _, normi, indexi = self._mass_function_params(M, mlow, mhigh, zi)
-
-            norm.append(normi)
-            index.append(indexi)
-
-        return norm, index, z_range, z_range[1] - z_range[0]
-
-    def _mass_function_params(self, M, mlow, mhigh, zstart):
-
-        """
-        :param mlow: min mass in solar masses
-        :param mhigh: maximum mass in solar masses
-        :param zstart:
-        :param zend:
-        :param cone_opening_angle:
-        :param z_lens:
-        :param delta_theta_lens:
-        :return: number of halos between mlow and mhigh, normalization and power law index of the mass function
-        assumed parameterization is simple:
-
-        dN / dM = norm * (M / M_sun) ^ plaw_index
-
-        units of norm are therefore M_sun ^ -1
-        """
-
-        dN_dMdV = self.dN_dMdV_comoving(M, zstart)
-
-        N_objects_dV, norm_dV, plaw_index_dV = self._mass_function_moment(M, dN_dMdV, 0, mlow, mhigh)
-
-        return N_objects_dV, norm_dV, plaw_index_dV
 
     def dN_dMdV_comoving(self, M, z):
 
@@ -178,30 +155,20 @@ class LensingMassFunction(object):
 
         return dN_dV * self.geometry.volume_element_comoving(z, delta_z)
 
-    def _fit_norm_index(self, M, dNdM, order=1):
-        """
-        Fits a line to a log(M) log(dNdM) relation
-        :param M: masses
-        :param dNdM: mass function
-        :param order: order of the polynomial
-        :return: normalization units [dNdM * dM ^ -1], power law exponent
-        """
-
-        if np.all(dNdM==0):
-            return 0, 2
-
-        coeffs = np.polyfit(np.log10(M), np.log10(dNdM), order)
-        plaw_index = coeffs[0]
-        norm = 10 ** coeffs[1]
-
-        return norm,plaw_index
-
     def integrate_mass_function(self, z, delta_z, mlow, mhigh, log_m_break, break_index, break_scale, n=1,
                                 norm_scale = 1):
 
-        norm = self.norm_at_z(z, delta_z)
-        plaw_index = self.plaw_index_z(z)
-        moment = self.integrate_power_law(norm_scale * norm, mlow, mhigh, log_m_break, n, plaw_index,
+        mbin = self.log_mstep
+        logm_centers = np.arange(np.log10(mlow), np.log10(mhigh), mbin) + mbin/2
+        if logm_centers[-1]>np.log10(mhigh):
+            logm_centers = logm_centers[0:-1]
+        moment = 0
+
+        for mi in logm_centers:
+
+            norm = self.norm_at_z(mi, z, delta_z)
+            plaw_index = self.plaw_index_z(mi, z)
+            moment += self.integrate_power_law(norm_scale * norm, 10**(mi-mbin/2), 10**(mi+mbin/2), log_m_break, n, plaw_index,
                                           break_index=break_index, break_scale=break_scale)
 
         return moment
@@ -215,61 +182,6 @@ class LensingMassFunction(object):
         moment = quad(_integrand, m_low, m_high, args=(10**log_m_break, plaw_index, n))[0]
 
         return moment
-
-    def _mass_function_moment(self, M, dNdM, n, m_low, m_high, order=1):
-
-        """
-        :param normalization: dimensions M_sun^-1 Mpc^-3 or M_sun
-        :param plaw_index: power law index
-        :param N: for the Nth moment
-        :return: Nth moment of the mass funciton
-        """
-
-        norm,plaw_index = self._fit_norm_index(M, dNdM, order=order)
-
-        if plaw_index == 2 and n==1:
-            moment = norm * np.log(m_high * m_low ** -1)
-
-        else:
-
-            moment = self.integrate_power_law(norm, m_low, m_high, 0, n, plaw_index)
-
-        return moment,norm,plaw_index
-
-    def number_in_cylinder_arcsec(self, cylinder_diameter_arcsec, z_max, m_min=10**6.5, m_max=10**7.5,
-                           z_min=0):
-
-        dz = 0.01
-        zsteps = np.arange(z_min+dz, z_max+dz, dz)
-        nhalos = 0
-        M = np.logspace(7, 10, 25)
-
-        for zi in zsteps:
-
-            dr = self.geometry._delta_R_comoving(zi, dz)
-            cylinder_diameter_kpc = cylinder_diameter_arcsec*self.geometry._cosmo.kpc_per_asec(zi)
-            radius = 0.5 * cylinder_diameter_kpc * 0.001
-            dv_comoving = np.pi*radius**2 * dr
-            nhalos += dv_comoving*self._mass_function_moment(M, self.dN_dMdV_comoving(M, zi), 0, m_min, m_max)[0]
-
-        return nhalos
-
-    def number_in_cylinder_kpc(self, cylinder_diameter_kpc, z_max, m_min=10**6.5, m_max=10**7.5,
-                           z_min=0):
-
-        dz = 0.01
-        zsteps = np.arange(z_min+dz, z_max+dz, dz)
-        nhalos = 0
-        M = np.logspace(7, 10, 25)
-        radius = 0.5 * cylinder_diameter_kpc * 0.001
-
-        for zi in zsteps:
-
-            dr = self.geometry._delta_R_comoving(zi, dz)
-            dv_comoving = np.pi*radius**2 * dr
-            nhalos += dv_comoving*self._mass_function_moment(M, self.dN_dMdV_comoving(M, zi), 0, m_min, m_max)[0]
-
-        return nhalos
 
     def cylinder_volume(self, cylinder_diameter_kpc, z_max,
                            z_min=0):
@@ -285,36 +197,4 @@ class LensingMassFunction(object):
             volume += dv_comoving
 
         return volume
-
-def write_lookup_table():
-
-    def write_to_file(fname, pname, values, mode):
-        with open(fname, mode) as f:
-            f.write(pname + ' = [')
-            for j, val in enumerate(values):
-                #if j % 13 == 0 and j >0:
-                #    f.write('\ \n   ')
-                f.write(str(val)+', ')
-            f.write(']\n')
-
-    from pyHalo.Cosmology.cosmology import Cosmology
-    # new interpolation is optimized to fit correctly over 4 decades in mass
-    l = LensingMassFunction(Cosmology(), 10**7.5, 10**8.7, 0.1, 4., 6., use_lookup_table=False)
-
-    fname = './lookup_tables/lookup_sheth99_updated.py'
-
-    with open(fname, 'w') as f:
-        f.write('import numpy as np\n')
-
-    write_to_file(fname, 'norm_z_dV', np.round(l._norm_z_dV, 2), 'a')
-    write_to_file(fname, 'plaw_index_z', np.round(l._plaw_index_z,2), 'a')
-
-    with open(fname, 'a') as f:
-        f.write('z_range = np.array([')
-        for zi in l._z_range:
-            f.write(str(np.round(zi,2))+', ')
-        f.write('])\n\n')
-
-    with open(fname, 'a') as f:
-        f.write('delta_z = '+str(np.round(l._delta_z,2))+'\n\n')
 

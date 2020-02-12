@@ -141,8 +141,8 @@ def set_default_kwargs(profile_params):
     if 'kappa_scale' not in profile_params.keys():
         profile_params.update({'kappa_scale': realization_default.kappa_scale})
 
-    if 'draw_poission' not in profile_params.keys():
-        profile_params.update({'draw_poission': realization_default.draw_poission})
+    if 'draw_poisson' not in profile_params.keys():
+        profile_params.update({'draw_poisson': realization_default.draw_poission})
 
     if 'log_m_break' in profile_params.keys():
         if 'break_index' not in profile_params.keys():
@@ -230,6 +230,9 @@ def set_default_kwargs(profile_params):
     if 'opening_angle_factor' not in profile_params.keys():
         raise Exception('If you specify cone_opening_angle, you must also specify opening_angle_factor,'
                             'where R_ein_main = cone_opening_angle / opening_angle_factor')
+
+    if 'zmin' not in profile_params.keys():
+        profile_params['zmin'] = lenscone_default.default_zstart
 
     profile_params['R_ein_main'] = profile_params['cone_opening_angle'] * profile_params['opening_angle_factor'] ** -1
 

@@ -1,6 +1,29 @@
 from scipy.integrate import quad
 import numpy as np
 
+class DeltaFunction(object):
+
+    def __init__(self, logM_delta=None, normalization=None, draw_poission=True, **kwargs):
+
+        if normalization < 0:
+            raise Exception('normalization cannot be < 0.')
+        else:
+
+            self.Nhalos_mean = normalization
+
+        self.draw_poission = draw_poission
+
+        self.log_M = logM_delta
+
+    def draw(self):
+
+        if self.draw_poission:
+            N = np.random.poisson(self.Nhalos_mean)
+        else:
+            N = int(round(np.round(self.Nhalos_mean)))
+
+        return np.ones(N) * 10**self.log_M
+
 class SubhaloPowerLaw(object):
 
     """
