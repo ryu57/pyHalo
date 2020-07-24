@@ -329,8 +329,10 @@ class Realization(object):
             lens = TNFWLensing(self.lens_cosmo)
 
         elif halo.mdef == 'SIDM_TNFW':
-            from pyHalo.Lensing.coredTNFW import coreTNFW
-            lens = coreTNFW(self.lens_cosmo)
+            #from pyHalo.Lensing.coredTNFW import coreTNFW
+            #lens = coreTNFW(self.lens_cosmo)
+            from pyHalo.Lensing.coredTNFW_mutligaussian import coreTNFW_MGE
+            lens = coreTNFW_MGE(self.lens_cosmo)
 
         elif halo.mdef == 'PT_MASS':
             from pyHalo.Lensing.PTmass import PTmassLensing

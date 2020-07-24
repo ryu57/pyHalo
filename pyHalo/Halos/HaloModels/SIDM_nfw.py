@@ -12,13 +12,17 @@ class truncatedSIDMMainSubhalo(MainSubhaloBase):
                                                                                              self.concentration,
                                                                                              self.halo_redshift_eval)
 
+        core_radius, rho_central = self.eval_rho_central()
+
         return {'rho_s': self._rho_sub, 'rs': self._rs_sub, 'c': self.concentration,
-                'rt': self.truncation_radius, 'rc': self.core_radius*self._rs_sub}
+                'rt': self.truncation_radius, 'rc': core_radius * self._rs_sub,
+                'rho_central': rho_central}
 
     @property
     def halo_parameters(self):
 
-        return [self.concentration, self.truncation_radius, self.core_radius]
+        core_radius, rho_central = self.eval_rho_central()
+        return [self.concentration, self.truncation_radius, core_radius, rho_central]
 
     @property
     def truncation_radius(self):
@@ -73,14 +77,16 @@ class truncatedSIDMMainSubhalo(MainSubhaloBase):
 
         return r_t
 
-    @property
-    def core_radius(self):
+    def eval_rho_central(self):
 
         if 'core_ratio' in self._halo_class._args.keys():
             if 'SIDMcross' in self._halo_class._args.keys():
                 raise Exception('You have specified both core_ratio and SIDMcross arguments. '
                                 'You should pick one or the other')
             core_ratio = self._halo_class._args['core_ratio']
+            rho, _, _ = self._halo_class.cosmo_prof.NFW_params_physical(self._halo_class.mass,
+                                                                        self.concentration, self._halo_class.z)
+            rho_sidm = rho / core_ratio
 
         else:
 
@@ -95,12 +101,11 @@ class truncatedSIDMMainSubhalo(MainSubhaloBase):
                               self._halo_class.z, self._halo_class._args['SIDMcross'],
                               self._halo_class._args['vpower'],
                               delta_concentration)
-
             rho_sidm = 10 ** log_rho0
 
             core_ratio = rho_mean * rho_sidm ** -1
 
-        return core_ratio
+        return core_ratio, rho_sidm
 
 class truncatedSIDMFieldHalo(FieldHaloBase):
 
@@ -112,22 +117,28 @@ class truncatedSIDMFieldHalo(FieldHaloBase):
                                                                                              self.concentration,
                                                                                              self.halo_redshift_eval)
 
+        core_radius, rho_central = self.eval_rho_central()
+
         return {'rho_s': self._rho_sub, 'rs': self._rs_sub, 'c': self.concentration,
-                'rt': self.truncation_radius, 'rc': self.core_radius*self._rs_sub}
+                'rt': self.truncation_radius, 'rc': core_radius*self._rs_sub,
+                'rho_central': rho_central}
 
     @property
     def halo_parameters(self):
 
-        return [self.concentration, self.truncation_radius, self.core_radius]
+        core_radius, rho_central = self.eval_rho_central()
+        return [self.concentration, self.truncation_radius, core_radius, rho_central]
 
-    @property
-    def core_radius(self):
+    def eval_rho_central(self):
 
         if 'core_ratio' in self._halo_class._args.keys():
             if 'SIDMcross' in self._halo_class._args.keys():
                 raise Exception('You have specified both core_ratio and SIDMcross arguments. '
                                 'You should pick one or the other')
             core_ratio = self._halo_class._args['core_ratio']
+            rho, _, _ = self._halo_class.cosmo_prof.NFW_params_physical(self._halo_class.mass,
+                                                   self.concentration, self._halo_class.z)
+            rho_sidm = rho / core_ratio
 
         else:
 
@@ -147,4 +158,4 @@ class truncatedSIDMFieldHalo(FieldHaloBase):
 
             core_ratio = rho_mean * rho_sidm ** -1
 
-        return core_ratio
+        return core_ratio, rho_sidm

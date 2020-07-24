@@ -154,7 +154,21 @@ class LensCosmo(object):
         Rs_angle = Rs / D_d / self.cosmo.arcsec  # Rs in arcsec
         theta_Rs = rho0 * (4 * Rs ** 2 * (1 + numpy.log(1. / 2.)))
         eps_crit = self.get_epsiloncrit(z, self.z_source)
+
         return Rs_angle, theta_Rs / eps_crit / D_d / self.cosmo.arcsec
+
+    def nfw_physical2angle_SIDM(self, M, c, z, rho_central):
+
+        D_d = self.cosmo.D_A_z(z)
+        rho0, Rs, r200 = self._nfwParam_physical_Mpc(M, c, z)
+        Rs_angle = Rs / D_d / self.cosmo.arcsec  # Rs in arcsec
+        theta_Rs = rho0 * (4 * Rs ** 2 * (1 + numpy.log(1. / 2.)))
+        eps_crit = self.get_epsiloncrit(z, self.z_source)
+
+        rho_central_mpc = rho_central * 10**9
+        convergence_central = rho_central_mpc * Rs / eps_crit / self.cosmo.arcsec
+
+        return Rs_angle, theta_Rs / eps_crit / D_d / self.cosmo.arcsec, convergence_central
 
     def rho0_c_NFW(self, c):
         """
