@@ -18,9 +18,9 @@ def realization_at_z(realization, z):
 
 class Realization(object):
 
-    def __init__(self, masses, x, y, r2d, r3d, mdefs, z, subhalo_flag, halo_mass_function,
+    def __init__(self, masses, x, y, r2d, r3d, mdefs, z, subhalo_flag, field_subhalo_flag, halo_mass_function,
                  halos=None, other_params={}, mass_sheet_correction=True, dynamic=False,
-                 rendering_classes=None, field_subhalo_flag=False):
+                 rendering_classes=None):
 
         """
 
@@ -67,10 +67,10 @@ class Realization(object):
 
         if halos is None:
 
-            for mi, xi, yi, r2di, r3di, mdefi, zi, sub_flag in zip(masses, x, y, r2d, r3d,
-                           mdefs, z, subhalo_flag):
+            for mi, xi, yi, r2di, r3di, mdefi, zi, sub_flag, field_sub_flag in zip(masses, x, y, r2d, r3d,
+                           mdefs, z, subhalo_flag, field_subhalo_flag):
 
-                self._add_halo(mi, xi, yi, r2di, r3di, mdefi, zi, sub_flag)
+                self._add_halo(mi, xi, yi, r2di, r3di, mdefi, zi, sub_flag, field_sub_flag)
 
             if self._prof_params['include_subhalos']:
                 raise Exception('subhalos of halos not yet implemented.')
@@ -78,25 +78,11 @@ class Realization(object):
         else:
 
             for halo in halos:
-                self._add_halo(None, None, None, None, None, None, None, None, halo=halo)
+                self._add_halo(None, None, None, None, None, None, None, None, None, halo=halo)
 
         self._reset()
 
         self.set_rendering_classes(rendering_classes)
-
-    @classmethod
-    def add_field_subhalos(cls, realization, kwargs_subhalos, rendering_class_subhalos):
-
-        halos = []
-
-        for halo in realization.halos:
-
-            new_halo, associated_subhalos = rendering_class_subhalos(halo, kwargs_subhalos)
-
-            halos += [new_halo] + associated_subhalos
-
-        return Realization.from_halos(halos, realization.halo_mass_function, realization._prof_params,
-                                      realization._mass_sheet_correction, realization.rendering_classes)
 
     @classmethod
     def from_halos(cls, halos, halo_mass_function, prof_params, msheet_correction, rendering_classes):
@@ -111,7 +97,7 @@ class Realization(object):
         :return: an instance of Realization created directly from the halo class instances
         """
 
-        realization = Realization(None, None, None, None, None, None, None, None, halo_mass_function,
+        realization = Realization(None, None, None, None, None, None, None, None, None, halo_mass_function,
                                   halos=halos, other_params=prof_params,
                                   mass_sheet_correction=msheet_correction,
                                   rendering_classes=rendering_classes)
@@ -173,6 +159,7 @@ class Realization(object):
         self.mdefs = []
         self._halo_tags = []
         self.subhalo_flags = []
+        self.field_subhalo_flags = []
 
         for halo in self.halos:
             self.masses.append(halo.mass)
@@ -184,6 +171,7 @@ class Realization(object):
             self.mdefs.append(halo.mdef)
             self._halo_tags.append(halo._unique_tag)
             self.subhalo_flags.append(halo.is_subhalo)
+            self.field_subhalo_flags.append(halo.is_field_subhalo)
 
         self.masses = np.array(self.masses)
         self.x = np.array(self.x)
@@ -222,15 +210,6 @@ class Realization(object):
                         args=self._prof_params)
             halos.append(new_halo)
 
-        dzlens = self.lens_cosmo.cosmo.D_C_z(self.geometry._zlens)
-        x_centroid, y_centroid = ray_interp_x(dzlens), ray_interp_y(dzlens)
-
-        # for rendering_class in self.rendering_classes:
-        #     if rendering_class.type == 'main_lens_plane':
-        #
-        #         rendering_class.convergence_correction_centroid_x = float(x_centroid)
-        #         rendering_class.convergence_correction_centroid_y = float(y_centroid)
-
         new_realization = Realization.from_halos(halos, self.halo_mass_function, self._prof_params,
                                       self._mass_sheet_correction,
                                       rendering_classes=self.rendering_classes)
@@ -239,10 +218,11 @@ class Realization(object):
 
         return new_realization
 
-    def _add_halo(self, m, x, y, r2, r3, md, z, sub_flag, halo=None):
+    def _add_halo(self, m, x, y, r2, r3, md, z, sub_flag, field_sub_flag, halo=None):
         if halo is None:
 
-            halo = Halo(mass=m, x=x, y=y, r2d=r2, r3d=r3, mdef=md, z=z, sub_flag=sub_flag, cosmo_m_prof=self.lens_cosmo,
+            halo = Halo(mass=m, x=x, y=y, r2d=r2, r3d=r3, mdef=md, z=z, sub_flag=sub_flag,
+                        field_sub_flag=field_sub_flag, cosmo_m_prof=self.lens_cosmo,
                         args=self._prof_params)
         self._lensing_functions.append(self._lens(halo))
         self.halos.append(halo)
@@ -369,10 +349,10 @@ class Realization(object):
             redshifts.append(halo.z)
         return np.array(xcoords), np.array(ycoords), np.log10(masses), np.array(redshifts)
 
-    def add_halo(self, mass, x, y, r2d, r3d, mdef, z, sub_flag):
+    def add_single_halo(self, mass, x, y, r2d, r3d, mdef, z, sub_flag, field_subhalo_flag):
 
-        new_real = Realization([mass], [x], [y], [r2d], [r3d], [mdef], [z], [sub_flag], self.halo_mass_function,
-                               halos = None, other_params=self._prof_params,
+        new_real = Realization([mass], [x], [y], [r2d], [r3d], [mdef], [z], [sub_flag], [field_subhalo_flag], self.halo_mass_function,
+                               halos=None, other_params=self._prof_params,
                                mass_sheet_correction=self._mass_sheet_correction)
 
         realization = self.join(new_real)
@@ -384,7 +364,7 @@ class Realization(object):
         new_params.update(new_args)
 
         return Realization(self.masses, self.x, self.y, self.r2d, self.r3d, self.mdefs,
-                           self.redshifts, self.subhalo_flags, self.halo_mass_function,
+                           self.redshifts, self.subhalo_flags, self.field_subhalo_flags, self.halo_mass_function,
                            other_params=new_params, mass_sheet_correction=self._mass_sheet_correction)
 
     def change_mdef(self, new_mdef):
@@ -403,8 +383,8 @@ class Realization(object):
             duplicate.mdef = new_mdef
             new_halos.append(duplicate)
 
-        return Realization(None, None, None, None, None, None, None, None, self.halo_mass_function,
-                           halos = new_halos, other_params= self._prof_params,
+        return Realization(None, None, None, None, None, None, None, None, None, self.halo_mass_function,
+                           halos=new_halos, other_params= self._prof_params,
                            mass_sheet_correction=self._mass_sheet_correction)
 
     def split_at_z(self, z):
@@ -546,6 +526,7 @@ class SingleHalo(Realization):
     """
 
     def __init__(self, halo_mass, x, y, r3d, mdef, z, zlens, zsource, subhalo_flag=True,
+                 if_field_subhalo_flag=False,
                  cone_opening_angle=6, log_mlow=6, log_mhigh=10,
                  kwargs_halo={}, cosmo=None):
 
@@ -558,6 +539,6 @@ class SingleHalo(Realization):
 
         kwargs_halo.update({'cone_opening_angle': cone_opening_angle})
         super(SingleHalo, self).__init__([halo_mass], [x], [y], [r2d],
-                                         [r3d], [mdef], [z], [subhalo_flag], halo_mass_function,
+                                         [r3d], [mdef], [z], [subhalo_flag], [if_field_subhalo_flag], halo_mass_function,
                                          other_params=kwargs_halo, mass_sheet_correction=False)
 

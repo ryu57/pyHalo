@@ -44,7 +44,7 @@ class pyHalo(pyHaloBase):
 
         assert type in ['main_lens', 'composite_powerlaw', 'line_of_sight', 'dynamic_main', 'dynamic_LOS']
 
-        flag = []
+        subhalo_flag, field_subhalo_flag = [], []
         init = True
 
         mass_sheet = add_mass_sheet
@@ -60,7 +60,8 @@ class pyHalo(pyHaloBase):
             mdef = args['mdef_main']
 
             masses, x, y, r2d, r3d, redshifts = render_main(rendering_class)
-            flag += [True] * len(masses)
+            subhalo_flag += [True] * len(masses)
+            field_subhalo_flag += [False] * len(masses)
             init = False
             mdefs = [mdef] * len(masses)
 
@@ -82,14 +83,15 @@ class pyHalo(pyHaloBase):
             mdef_los = args['mdef_los']
 
             if init:
-                masses, x, y, r2d, r3d, redshifts \
+                masses, x, y, r2d, r3d, redshifts, field_sub_flag \
                     = render_los(rendering_class, lens_plane_redshifts, delta_zs, args['zmin'], args['zmax'])
-                flag += [False] * len(masses)
+                subhalo_flag += [False] * len(masses)
                 mdefs = [mdef_los] * len(masses)
+                field_subhalo_flag += field_sub_flag
 
             else:
 
-                field_halo_masses, field_xpos, field_ypos, field_r2d, field_r3d, field_z \
+                field_halo_masses, field_xpos, field_ypos, field_r2d, field_r3d, field_z, field_sub_flag \
                     = render_los(rendering_class, lens_plane_redshifts, delta_zs, args['zmin'], args['zmax'])
 
                 masses = np.append(masses, field_halo_masses)
@@ -98,10 +100,12 @@ class pyHalo(pyHaloBase):
                 r2d = np.append(r2d, field_r2d)
                 r3d = np.append(r3d, field_r3d)
                 redshifts = np.append(redshifts, field_z)
-                flag += [False] * len(field_halo_masses)
+                subhalo_flag += [False] * len(field_halo_masses)
                 mdefs += [mdef_los] * len(field_halo_masses)
+                field_subhalo_flag += field_sub_flag
 
-        realization = Realization(masses, x, y, r2d, r3d, mdefs, redshifts, flag, self.halo_mass_function,
+        realization = Realization(masses, x, y, r2d, r3d, mdefs, redshifts, subhalo_flag, field_subhalo_flag,
+                                  self.halo_mass_function,
                                   other_params=args, mass_sheet_correction=mass_sheet,
                                   rendering_classes=rendering_classes)
 
