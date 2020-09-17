@@ -1,8 +1,8 @@
-from colossus.lss.mass_function import *
+from colossus_dev.lss.mass_function import *
 from pyHalo.Cosmology.geometry import *
 from scipy.interpolate import interp1d
 from pyHalo.defaults import *
-from colossus.lss.bias import twoHaloTerm
+from colossus_dev.lss.bias import twoHaloTerm
 
 class LensingMassFunction(object):
 

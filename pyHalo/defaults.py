@@ -99,7 +99,7 @@ class RealizationDefaults(object):
 
         self.default_subhalos_of_field_halos = False
         self.default_LOS_normalization = 1
-
+        
         self.log_mlow = 6
         self.log_mhigh = 10
         self.two_halo_term = True

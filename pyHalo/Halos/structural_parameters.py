@@ -1,5 +1,5 @@
 import numpy as numpy
-from colossus.halo.concentration import concentration, peaks
+from colossus_dev.halo.concentration import concentration, peaks
 from pyHalo.Halos.halo_util import *
 from scipy.optimize import minimize
 

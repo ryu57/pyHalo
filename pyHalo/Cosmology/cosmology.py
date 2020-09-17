@@ -1,6 +1,6 @@
-from colossus.halo.concentration import *
-from colossus.lss.peaks import lagrangianR
-from colossus.cosmology import cosmology
+from colossus_dev.halo.concentration import *
+from colossus_dev.lss.peaks import lagrangianR
+from colossus_dev.cosmology import cosmology
 import astropy.cosmology as astropy_cosmo
 from scipy.interpolate import interp1d
 from pyHalo.defaults import *
@@ -40,12 +40,24 @@ class Cosmology(object):
 
         return self._colossus_cosmo.matterPowerSpectrum(k, z, **kwargs)
 
-    def k_from_M(self, M):
+    def R_from_M(self, M):
 
         M *= self.h
 
+        return lagrangianR(M)
+
+    def k_from_M(self, M):
+
         two_pi = 2 * 3.14159
-        return two_pi/lagrangianR(M)
+        return two_pi/self.R_from_M(M)
+
+    def sigmaM(self, M, z, ps_args):
+
+        R = self.R_from_M(M)
+        if ps_args is not None:
+            return self._colossus_cosmo.sigma(R, z, ps_args = ps_args)
+        else:
+            return self._colossus_cosmo.sigma(R, z)
 
     def D_A_z(self, z):
 
@@ -119,7 +131,7 @@ class Cosmology(object):
 
     def _setup_colossus_cosmology(self, cosmo_kwargs):
 
-        if not hasattr(self,'colossus_cosmo'):
+        if not hasattr(self, 'colossus_cosmo'):
 
             colossus_kwargs = {}
             keys = ['H0', 'Om0', 'Ob0', 'ns', 'sigma8', 'power_law']
@@ -131,7 +143,7 @@ class Cosmology(object):
                     colossus_kwargs.update({key: cosmo_kwargs[key]})
                     if key == 'power_law':
                         colossus_kwargs.update({'power_law_n': cosmo_kwargs['power_law_n']})
-
+            print(colossus_kwargs)
             self._colossus_cosmo = cosmology.setCosmology('custom', colossus_kwargs)
 
         return self._colossus_cosmo
