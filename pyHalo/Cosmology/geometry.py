@@ -18,6 +18,7 @@ class Geometry(object):
         else:
             raise Exception('geometry type '+str(geometry_type) + ' not recognized.')
 
+        self.cosmo = cosmology
         self._cosmo = cosmology
         self._zlens, self._zsource = z_lens, z_source
         self.cone_opening_angle = opening_angle

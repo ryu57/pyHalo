@@ -27,6 +27,80 @@ class pyHaloBase(object):
         self._halo_mass_function_args = kwargs_halo_mass_function
         self.reset_redshifts(zlens, zsource)
 
+    def interpolate_ray_paths_old(self, x_coordinates, y_coordinates, lens_model, kwargs_lens, zsource,
+                               terminate_at_source=False, source_x=None, source_y=None, evaluate_at_mean=False):
+
+        """
+        :param x_coordinates: x coordinates to interpolate (arcsec) (list)
+        :param y_coordinates: y coordinates to interpolate (arcsec) (list)
+        Typically x_coordinates/y_coordinates would be four image positions, or the coordinate of the lens centroid
+        :param lens_model: instance of LensModel (lenstronomy)
+        :param kwargs_lens: keyword arguments for lens model
+        :param zsource: source redshift
+        :param terminate_at_source: fix the final angular coordinate to the source coordinate
+        :param source_x: source x coordinate (arcsec)
+        :param source_y: source y coordinate (arcsec)
+        :param evaluate_at_mean: if True, returns two single interp1d instances (one for each of x/y) that return the
+        average of each individual x/y coordinate evaluated at each lens plane. For example, if you pass in four images positions
+        the output would be an interpolation of the average x/y coordinate along the path traversed by the light
+        (This is useful for aligning realizations with a background source significantly offset from the lens centroid)
+
+        :return: Instances of interp1d (scipy) that return the angular coordinate of a ray given a
+        comoving distance
+        """
+
+        angle_x = []
+        angle_y = []
+
+        xzero = np.zeros_like(x_coordinates)
+        yzero = np.zeros_like(y_coordinates)
+
+        xco, yco, tz, z = lens_model.lens_model.ray_shooting_partial_steps(xzero, yzero,
+                                                                           x_coordinates, y_coordinates, 0., self.zsource,
+                                                                           kwargs_lens)
+        return xco, yco, tz, z
+        for i, (xpos, ypos) in enumerate(zip(x_coordinates, y_coordinates)):
+
+            theta_x = [xpos]
+            theta_y = [ypos]
+
+            ray_x, ray_y, d = self._compute_comoving_ray_path(xpos, ypos, lens_model, kwargs_lens, zsource,
+                               terminate_at_source, source_x, source_y)
+
+            for rx, ry, di in zip(ray_x[1:], ray_y[1:], d[1:]):
+
+                theta_x.append(rx/di)
+                theta_y.append(ry/di)
+
+            distances = [0.] + list(d[1:])
+            distances = np.array(distances)
+            theta_x = np.array(theta_x)
+            theta_y = np.array(theta_y)
+
+            angle_x.append(interp1d(distances, theta_x))
+            angle_y.append(interp1d(distances, theta_y))
+
+        if evaluate_at_mean:
+
+            zrange = np.linspace(0., self.zsource, 100)
+            comoving_distance_calc = self.cosmology.D_C_transverse
+            distances = [comoving_distance_calc(zi) for zi in zrange]
+
+            angular_coordinates_x = []
+            angular_coordinates_y = []
+            for di in distances:
+                x_coords = [ray_x(di) for ray_x in angle_x]
+                y_coords = [ray_y(di) for ray_y in angle_y]
+                x_center = np.mean(x_coords)
+                y_center = np.mean(y_coords)
+                angular_coordinates_x.append(x_center)
+                angular_coordinates_y.append(y_center)
+
+            angle_x = [interp1d(distances, angular_coordinates_x)]
+            angle_y = [interp1d(distances, angular_coordinates_y)]
+
+        return angle_x, angle_y
+
     def interpolate_ray_paths(self, x_coordinates, y_coordinates, lens_model, kwargs_lens, zsource,
                                terminate_at_source=False, source_x=None, source_y=None, evaluate_at_mean=False):
 
@@ -145,42 +219,6 @@ class pyHaloBase(object):
             y_list[-1] = source_y * d_src
 
         return np.array(x_list), np.array(y_list), np.array(distances)
-
-    # @staticmethod
-    # def interpolate_ray_paths(x_coordinates, y_coordinates, lens_model, kwargs_lens, zsource,
-    #                           terminate_at_source=False, source_x=None, source_y=None):
-    #
-    #     """
-    #     :param x_coordinates: x coordinates to interpolate (arcsec) (list)
-    #     :param y_coordinates: y coordinates to interpolate (arcsec) (list)
-    #     Typically x_coordinates/y_coordinates would be four image positions, or the coordinate of the lens centroid
-    #     :param lens_model: instance of LensModel (lenstronomy)
-    #     :param kwargs_lens: keyword arguments for lens model
-    #     :param zsource: source redshift
-    #     :param terminate_at_source: fix the final angular coordinate to the source coordinate
-    #     :param source_x: source x coordinate (arcsec)
-    #     :param source_y: source y coordinate (arcsec)
-    #     :return: Instances of interp1d (scipy) that return the angular coordinate of a ray given a
-    #     comoving distance
-    #     """
-    #     ray_angles_x = []
-    #     ray_angles_y = []
-    #
-    #     for (xi, yi) in zip(x_coordinates, y_coordinates):
-    #         x, y, redshifts, tz = lens_model.lens_model.ray_shooting_partial_steps(0., 0., xi, yi, 0, zsource,
-    #                                                                                kwargs_lens)
-    #
-    #         angle_x = [xi] + [x_comoving / tzi for x_comoving, tzi in zip(x[1:], tz[1:])]
-    #         angle_y = [yi] + [y_comoving / tzi for y_comoving, tzi in zip(y[1:], tz[1:])]
-    #
-    #         if terminate_at_source:
-    #             angle_x[-1] = source_x
-    #             angle_y[-1] = source_y
-    #
-    #         ray_angles_x.append(interp1d(tz, angle_x))
-    #         ray_angles_y.append(interp1d(tz, angle_y))
-    #
-    #     return ray_angles_x, ray_angles_y
 
     def lens_plane_redshifts(self, kwargs_render=dict):
 
