@@ -101,7 +101,6 @@ def CDM(z_lens, z_source, sigma_sub=0.025, shmf_log_slope=-1.9, cone_opening_ang
     # this will use the default cosmology. parameters can be found in defaults.py
     pyhalo = pyHalo(z_lens, z_source)
     # Using the render method will result a list of realizations
-
     realization_subs = pyhalo.render(['SUBHALOS'], kwargs_model_subhalos, nrealizations=1)[0]
     realization_line_of_sight = pyhalo.render(['LINE_OF_SIGHT', 'TWO_HALO'], kwargs_model_field, nrealizations=1)[0]
 
@@ -248,7 +247,55 @@ def SIDM(z_lens, z_source, cross_section_name, cross_section_class, kwargs_cross
                               log_mhigh, LOS_normalization, log_m_host, r_tidal, 'coreTNFW', **kwargs_sidm)
 
     ext = RealizationExtensions(realization_no_core_collapse)
+    inds = ext.find_core_collapsed_halos(evolution_timescale_function, velocity_dispersion_function,
+                                         cross_section_class, t_sub=t_sub, t_field=t_field)
 
+    realization = ext.add_core_collapsed_halos(inds, log_slope_halo=logarithmic_core_collapse_slope,
+                                                       x_core_halo=core_collapsed_core_size)
+
+    return realization
+
+def SIDM_core_collapse(z_lens, z_source, cross_section_name, cross_section_class, kwargs_cross_section,
+         logarithmic_core_collapse_slope, core_collapsed_core_size,
+         deflection_angle_function, central_density_function, evolution_timescale_function,
+         velocity_dispersion_function, t_sub=10, t_field=100, log_mlow=6., log_mhigh=10., cone_opening_angle_arcsec=6., sigma_sub=0.025,
+         LOS_normalization=1., log_m_host=13.3, power_law_index=-1.9, r_tidal='0.25Rs', **kwargs_other):
+
+    """
+    This generates realizations of self-interacting dark matter (SIDM) halos, inluding both cored and core-collapsed
+    objects.
+
+    :param z_lens: the lens redshift
+    :param z_source: the source redshift
+    :param cross_section_name: the name of the cross section implemented in SIDMpy
+    :param cross_section_class: the class defined in SIDMpy for the SIDM cross section
+    :param kwargs_cross_section: keyword arguments for the SIDM cross section class
+    :param logarithmic_core_collapse_slope: logarithmic slope of core collapsed halos
+    :param core_collapsed_core_size: central core size of core collapsed halos (in units of Rs)
+    :param deflection_angle_function: a function that returns the deflection angles, to be passed into lenstronomy
+    :param central_density_function: a function that computes the central density of cored halos
+    :param evolution_timescale_function: a function that computes the evolution timescale t_0 for a given cross section
+    (for example, Equation 9 in Gilman et al. 2021)
+    :param velocity_dispersion_function: a function that computes the central velocity dispersion of an SIDM halo
+    :param t_sub: core collapse timescale for subhalos
+    :param t_field: core collapse timescale for field halos
+    :param log_mlow: log10(minimum halo mass) rendered, or a function that returns log_mlow given a redshift
+    :param log_mhigh: log10(maximum halo mass) rendered, or a function that returns log_mlow given a redshift
+    :param cone_opening_angle: the opening angle in arcsec of the double cone geometry where halos are added
+    :param sigma_sub: normalization of the subhalo mass function (see description in CDM preset model)
+    :param LOS_normalization: rescaling of the line of sight halo mass function relative to Sheth-Tormen
+    :param log_m_host: log10 host halo mass in M_sun
+    :param power_law_index: logarithmic slope of the subhalo mass function
+    :param r_tidal: subhalos are distributed following a cored NFW profile with a core radius r_tidal. This is intended
+    to account for tidal stripping of halos that pass close to the central galaxy
+    :param kwargs_other: any addition keyword arguments
+    :return: an instance of Realization that contains cored and core collapsed halos
+    """
+
+    realization_no_core_collapse = CDM(z_lens, z_source, sigma_sub, power_law_index, cone_opening_angle_arcsec, log_mlow,
+                              log_mhigh, LOS_normalization, log_m_host, r_tidal, 'TNFW')
+
+    ext = RealizationExtensions(realization_no_core_collapse)
     inds = ext.find_core_collapsed_halos(evolution_timescale_function, velocity_dispersion_function,
                                          cross_section_class, t_sub=t_sub, t_field=t_field)
 

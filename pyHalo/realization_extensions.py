@@ -250,25 +250,7 @@ class RealizationExtensions(object):
     def add_primordial_black_holes(self, pbh_mass_fraction, kwargs_pbh_mass_function, mass_fraction_in_halos,
                                    x_image_interp_list, y_image_interp_list, r_max_arcsec, arcsec_per_pixel=0.005):
 
-        """
-        This routine renders populations of primordial black holes modeled as point masses along the line of sight.
-        The population of objects includes a smoothly distributed component, and a component that is clustered according
-        to the population of halos generated in the instance of Realization used to instantiate the class.
 
-        :param pbh_mass_fraction: the mass fraction of dark matter contained in primordial black holes
-        :param kwargs_pbh_mass_function: keyword arguments for the PBH mass function
-        :param mass_fraction_in_halos: the fraction of dark matter mass contained in halos in the mass range
-        used to generate the instance of realization used to instantiate the class
-        :param x_image_interp_list: a list of interp1d functions that return the angular x coordinate of a light ray
-        given a comoving distance
-        :param y_image_interp_list: a list of interp1d functions that return the angular y coordinate of a light ray
-        given a comoving distance
-        :param r_max_arcsec: the radius of the rendering region in arcsec
-        :param arcsec_per_pixel: the resolution of the grid used to compute the population of PBH whose spatial
-        distribution tracks the dark matter density along the LOS specific by the instance of Realization used to
-        instantiate the class
-        :return: a new instance of Realization that contains primordial black holes modeled as point masses
-        """
         mass_definition = 'PT_MASS'
         plane_redshifts = self._realization.unique_redshifts
         delta_z = []
@@ -328,4 +310,69 @@ class RealizationExtensions(object):
                                                         r_max_arcsec, arcsec_per_pixel)
 
         return realization_with_clustering.join(realization_smooth)
+
+
+
+    def collapsed_core_ratio_continous(self, mass_range, bin_coef = 0.1, method="variable" ):
+        """
+        Computes the collapsed_core ratio for each entry in the mass_range array
+
+        :param mass_range: A continuous array the represents the mass values to compute for the collapsed core_ratio
+        :param method: String that determines the range of the bin for each mass value, 'variable' sets the range to be mass * bin_coef,
+        any other string sets the range to be a constant set by the value of bin_coef
+        :param bin_coef: Value that determines the bin size, its effects depends on the method parameter
+        :return: an array that represents the collapsed_core_ratio at each value in mass_range
+        """
+
+        halos = self._realization.halos
+        collapsed = np.zeros(len(mass_range))
+        total = np.zeros(len(mass_range))
+        for i in range(len(mass_range)):
+            for halo in halos:
+                if method == 'variable':
+                    if 10 ** mass_range[i] * (1+bin_coef) >= halo.mass >= 10 ** mass_range[i] * (1-bin_coef):
+                        if halo.mdef == "SPL_CORE":
+                            collapsed[i] += 1
+                        total[i] += 1
+                else:
+                    if 10 ** mass_range[i] + bin_coef >= halo.mass >= 10 ** mass_range[i] - bin_coef:
+                        if halo.mdef == "SPL_CORE":
+                            collapsed[i] += 1
+                        total[i] += 1
+
+        return collapsed / total
+
+    def total_halo_mass_range(self, mass_range, search_range_coef = 0.1, method="variable" ):
+        halos = self._realization.halos
+        total = np.zeros(len(mass_range))
+        for i in range(len(mass_range)):
+            for halo in halos:
+                if method == 'variable':
+                    if 10 ** mass_range[i] * (1+search_range_coef)  >= halo.mass >= 10 ** mass_range[i] * (1-search_range_coef):
+                        total[i] += 1
+                else:
+                    if 10 ** mass_range[i] + search_range_coef  >= halo.mass >= 10 ** mass_range[i] - search_range_coef:
+                        total[i] += 1
+
+        return  total
+
+    def total_collapsed_halo_mass_range(self, mass_range, search_range_coef = 0.1, method="variable" ):
+        halos = self._realization.halos
+        collapsed = np.zeros(len(mass_range))
+        for i in range(len(mass_range)):
+            for halo in halos:
+                if method == 'variable':
+                    if 10 ** mass_range[i] * (1+search_range_coef)  >= halo.mass >= 10 ** mass_range[i] * (1-search_range_coef):
+                        if halo.mdef == "SPL_CORE":
+                            collapsed[i] += 1
+                else:
+                    if 10 ** mass_range[i] + search_range_coef  >= halo.mass >= 10 ** mass_range[i] - search_range_coef:
+                        if halo.mdef == "SPL_CORE":
+                            collapsed[i] += 1
+
+        return  collapsed
+
+
+
+
 
